@@ -39,6 +39,12 @@ app.post("/create-payment-intent", async (req, res) => {
 
 app.post("/create-checkout-session", async (req, res) => {
   try {
+    const appUrl = process.env.APP_URL
+      ? process.env.APP_URL.replace(/\/$/, "")
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -47,8 +53,8 @@ app.post("/create-checkout-session", async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: "http://localhost:3000/success.html",
-      cancel_url: "http://localhost:3000/cancel.html",
+      success_url: `${appUrl}/success.html`,
+      cancel_url: `${appUrl}/cancel.html`,
     });
 
     res.json({ url: session.url });
@@ -58,4 +64,10 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("Serveur lancé sur http://localhost:3000"));
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(3000, () =>
+    console.log("Serveur lancé sur http://localhost:3000"),
+  );
+}
