@@ -1,8 +1,46 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Succès</title></head>
-<body style="font-family: sans-serif; text-align: center; margin-top: 100px;">
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Paiement réussi</title>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 80px auto; text-align: center; }
+    #details { margin-top: 20px; padding: 20px; background: #f0eeff; border-radius: 8px; }
+  </style>
+</head>
+<body>
   <h1>✅ Paiement réussi !</h1>
-  <p>Merci pour ton achat.</p>
+  <div id="details">Chargement des détails...</div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+
+    async function loadDetails() {
+      if (!sessionId) {
+        document.getElementById("details").textContent = "Aucune commande trouvée.";
+        return;
+      }
+
+      try {
+        const res = await fetch(`/session-details?session_id=${sessionId}`);
+        const data = await res.json();
+
+        if (data.paymentStatus === "paid") {
+          document.getElementById("details").innerHTML = `
+            <p><strong>Produit :</strong> ${data.product}</p>
+            <p><strong>Prestation :</strong> ${data.service}</p>
+            <p><strong>Total payé :</strong> ${(data.amount / 100).toFixed(2)}€</p>
+          `;
+        } else {
+          document.getElementById("details").textContent = "Le paiement n'est pas confirmé.";
+        }
+      } catch (err) {
+        document.getElementById("details").textContent = "Erreur lors du chargement.";
+      }
+    }
+
+    loadDetails();
+  </script>
 </body>
 </html>

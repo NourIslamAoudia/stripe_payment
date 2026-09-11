@@ -20,6 +20,10 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   const sig = req.headers["stripe-signature"] as string;
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
 
+  console.log("🔔 Webhook reçu:", req.body);
+  console.log("🔑 Signature:", sig);
+  console.log("🔒 Secret du webhook:", endpointSecret);
+
   let event;
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
@@ -51,27 +55,6 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
 });
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("Serveur Stripe OK 🚀");
-});
-
-app.post("/create-payment-intent", async (req, res) => {
-  try {
-    const { amount, currency } = req.body;
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount, // en plus petite unité (ex: 1000 = 10.00€)
-      currency: currency || "eur",
-      automatic_payment_methods: { enabled: true },
-    });
-
-    res.json({ clientSecret: paymentIntent.client_secret });
-  } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.post("/create-checkout", async (req, res) => {
   try {
     const { product, service } = req.body; // ex: { product: "pantalon", service: "retouche" }
@@ -100,11 +83,41 @@ app.post("/create-checkout", async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: "https://stripe-payment-livid.vercel.app/success.html",
+      metadata: {
+        product,
+        service,
+      },
+      success_url:
+        "https://stripe-payment-livid.vercel.app/success.html?session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://stripe-payment-livid.vercel.app/cancel.html",
     });
 
     res.json({ url: session.url });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/session-details", async (req, res) => {
+  try {
+    const sessionId = req.query.session_id as string;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: "session_id manquant" });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["line_items"],
+    });
+
+    res.json({
+      product: session.metadata?.product,
+      service: session.metadata?.service,
+      amount: session.amount_total, // en centimes
+      currency: session.currency,
+      paymentStatus: session.payment_status,
+    });
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: error.message });
