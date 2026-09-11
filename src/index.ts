@@ -54,8 +54,8 @@ app.post("/create-checkout-session", async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${appUrl}/success.html`,
-      cancel_url: `${appUrl}/cancel.html`,
+      success_url: `https://stripe-payment-livid.vercel.app/success.html`,
+      cancel_url: `https://stripe-payment-livid.vercel.app/cancel.html`,
     });
 
     res.json({ url: session.url });
@@ -93,8 +93,8 @@ app.post("/create-checkout", async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: "http://localhost:3000/success.html",
-      cancel_url: "http://localhost:3000/cancel.html",
+      success_url: "https://stripe-payment-livid.vercel.app/success.html",
+      cancel_url: "https://stripe-payment-livid.vercel.app/cancel.html",
     });
 
     res.json({ url: session.url });
