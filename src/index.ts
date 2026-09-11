@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import Stripe from "stripe";
 import path from "path";
+import { productPrices, servicePrices } from "./pricing";
 
 dotenv.config();
 
@@ -55,6 +56,45 @@ app.post("/create-checkout-session", async (req, res) => {
       ],
       success_url: `${appUrl}/success.html`,
       cancel_url: `${appUrl}/cancel.html`,
+    });
+
+    res.json({ url: session.url });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/create-checkout", async (req, res) => {
+  try {
+    const { product, service } = req.body; // ex: { product: "pantalon", service: "retouche" }
+
+    const productPrice = productPrices[product];
+    const servicePrice = servicePrices[service];
+
+    if (!productPrice || !servicePrice) {
+      return res.status(400).json({ error: "Produit ou prestation invalide" });
+    }
+
+    const totalAmount = productPrice + servicePrice;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: `${product} - ${service}`,
+              description: `Transformation: ${product}, Prestation: ${service}`,
+            },
+            unit_amount: totalAmount,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: "http://localhost:3000/success.html",
+      cancel_url: "http://localhost:3000/cancel.html",
     });
 
     res.json({ url: session.url });

@@ -2,19 +2,116 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Test Stripe Checkout</title>
+  <title>Test Transformation</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 50px auto; }
+    h2 { margin-top: 30px; }
+    .options { display: flex; flex-wrap: wrap; gap: 10px; }
+    .option-btn {
+      padding: 12px 20px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .option-btn.selected {
+      border-color: #635bff;
+      background: #f0eeff;
+    }
+    #pay-button {
+      margin-top: 30px;
+      padding: 14px 24px;
+      background: #635bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #pay-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #total { margin-top: 20px; font-weight: bold; }
+  </style>
 </head>
-<body style="font-family: sans-serif; max-width: 500px; margin: 50px auto;">
-  <h2>MonGPT Premium - 10.00€</h2>
-  <button id="checkout-button" style="padding: 10px 20px; background: #635bff; color: white; border: none; border-radius: 6px; cursor: pointer;">
-    Payer avec Stripe Checkout
-  </button>
+<body>
+  <h2>1. Choisissez le produit</h2>
+  <div class="options" id="product-options">
+    <button class="option-btn" data-product="pantalon">Pantalon (5€)</button>
+    <button class="option-btn" data-product="veste">Veste (8€)</button>
+    <button class="option-btn" data-product="robe">Robe (10€)</button>
+    <button class="option-btn" data-product="chemise">Chemise (6€)</button>
+    <button class="option-btn" data-product="manteau">Manteau (12€)</button>
+    <button class="option-btn" data-product="autre">Autre (7€)</button>
+  </div>
+
+  <h2>2. Choisissez la prestation</h2>
+  <div class="options" id="service-options">
+    <button class="option-btn" data-service="retouche">Retouche (10€)</button>
+    <button class="option-btn" data-service="reparation">Réparation (15€)</button>
+    <button class="option-btn" data-service="personnalisation">Personnalisation (20€)</button>
+    <button class="option-btn" data-service="upcycling">Upcycling (25€)</button>
+  </div>
+
+  <div id="total"></div>
+
+  <button id="pay-button" disabled>Payer</button>
 
   <script>
-    document.getElementById("checkout-button").addEventListener("click", async () => {
-      const res = await fetch("/create-checkout-session", { method: "POST" });
-      const { url } = await res.json();
-      window.location.href = url;
+    let selectedProduct = null;
+    let selectedService = null;
+
+    // Prix affichés côté client, juste pour l'UI (le vrai calcul se fait côté serveur)
+    const productPricesDisplay = { pantalon: 5, veste: 8, robe: 10, chemise: 6, manteau: 12, autre: 7 };
+    const servicePricesDisplay = { retouche: 10, reparation: 15, personnalisation: 20, upcycling: 25 };
+
+    document.querySelectorAll("#product-options .option-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#product-options .option-btn").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedProduct = btn.dataset.product;
+        updateState();
+      });
+    });
+
+    document.querySelectorAll("#service-options .option-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#service-options .option-btn").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        selectedService = btn.dataset.service;
+        updateState();
+      });
+    });
+
+    function updateState() {
+      const payButton = document.getElementById("pay-button");
+      const totalDiv = document.getElementById("total");
+
+      if (selectedProduct && selectedService) {
+        const total = productPricesDisplay[selectedProduct] + servicePricesDisplay[selectedService];
+        totalDiv.textContent = `Total : ${total}.00€`;
+        payButton.disabled = false;
+      } else {
+        totalDiv.textContent = "";
+        payButton.disabled = true;
+      }
+    }
+
+    document.getElementById("pay-button").addEventListener("click", async () => {
+      const res = await fetch("/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product: selectedProduct, service: selectedService }),
+      });
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert("Erreur : " + (data.error || "inconnue"));
+      }
     });
   </script>
 </body>
