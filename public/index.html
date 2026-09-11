@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test Stripe Checkout</title>
+</head>
+<body style="font-family: sans-serif; max-width: 500px; margin: 50px auto;">
+  <h2>MonGPT Premium - 10.00€</h2>
+  <button id="checkout-button" style="padding: 10px 20px; background: #635bff; color: white; border: none; border-radius: 6px; cursor: pointer;">
+    Payer avec Stripe Checkout
+  </button>
+
+  <script>
+    document.getElementById("checkout-button").addEventListener("click", async () => {
+      const res = await fetch("/create-checkout-session", { method: "POST" });
+      const { url } = await res.json();
+      window.location.href = url;
+    });
+  </script>
+</body>
+</html>
