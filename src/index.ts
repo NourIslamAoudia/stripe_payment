@@ -15,6 +15,40 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 app.use(express.static(path.join(__dirname, "../public")));
 
 app.use(cors());
+
+app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  const sig = req.headers["stripe-signature"] as string;
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+  } catch (err: any) {
+    console.error("❌ Signature webhook invalide:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // On a la certitude que cet événement vient bien de Stripe
+  switch (event.type) {
+    case "checkout.session.completed":
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log("✅ Paiement confirmé pour la session:", session.id);
+      // ICI : ta vraie logique métier
+      // - débloquer l'accès au produit dans ta BDD
+      // - envoyer un email de confirmation
+      // - etc.
+      break;
+
+    case "checkout.session.expired":
+      console.log("⏰ Session expirée:", event.data.object);
+      break;
+
+    default:
+      console.log(`Event non géré: ${event.type}`);
+  }
+
+  res.json({ received: true });
+});
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -32,33 +66,6 @@ app.post("/create-payment-intent", async (req, res) => {
     });
 
     res.json({ clientSecret: paymentIntent.client_secret });
-  } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post("/create-checkout-session", async (req, res) => {
-  try {
-    const appUrl = process.env.APP_URL
-      ? process.env.APP_URL.replace(/\/$/, "")
-      : process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
-
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: [
-        {
-          price: "price_1UEWKjFKirn3MxnXP10233Wk",
-          quantity: 1,
-        },
-      ],
-      success_url: `https://stripe-payment-livid.vercel.app/success.html`,
-      cancel_url: `https://stripe-payment-livid.vercel.app/cancel.html`,
-    });
-
-    res.json({ url: session.url });
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: error.message });
